@@ -1,0 +1,17 @@
+### Test login with invalid credentials
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "invalid_user",
+  "password": "wrong_password"
+}
+
+### Test login with valid credentials (if you have any)
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
