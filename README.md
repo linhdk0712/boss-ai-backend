@@ -466,13 +466,23 @@ throw new ForbiddenException("Admin access required");
 - ✅ **Profile Picture Support**: Added `profilePictureUrl` field to AuthResponse.UserInfo for avatar functionality
 
 ### Configuration Management
-- ✅ **ConfigController**: RESTful endpoints for configuration data retrieval
-- ✅ **ConfigService**: Business logic for configuration management with proper error handling
-- ✅ **ConfigsPrimaryDto**: Data transfer object for configuration responses
-- ✅ **Category-based Configuration**: Support for industry, content_type, language, tone, and target_audience categories
-- ✅ **Active Configuration Filtering**: Only returns active configurations sorted by sort order
-- ✅ **Optimized User Configuration Queries**: Enhanced repository methods for efficient user-specific configuration retrieval
-- ✅ **Performance Improvements**: Reduced database queries through optimized repository methods and direct category filtering
+- ✅ **Comprehensive ConfigController**: Three-tier endpoint architecture for different use cases
+  - **Role-Based Primary Endpoints**: Intelligent filtering based on user role (admin vs user)
+  - **Available Configuration Endpoints**: Complete option lists for selection UI
+  - **User Selection Detail Endpoints**: Metadata-rich user preference management
+- ✅ **Advanced ConfigService**: Enhanced business logic with SecurityUtil integration
+  - **Automatic Role Detection**: Uses `SecurityUtil.isCurrentUserAdmin()` for access control
+  - **User Context Management**: Seamless current user access via `SecurityUtil.getCurrentUserId()`
+  - **Optimized Database Queries**: Efficient role-based data filtering
+- ✅ **Dual DTO Architecture**: 
+  - **ConfigsPrimaryDto**: Core configuration data for primary and available endpoints
+  - **ConfigsUserDto**: User selection metadata with embedded ConfigsPrimaryDto
+- ✅ **Category-based Configuration**: Complete support for industry, content_type, language, tone, and target_audience
+- ✅ **Security Integration**: Full `@PreAuthorize` annotations with role-based access control
+- ✅ **Performance Optimizations**: 
+  - Direct category filtering in repository methods
+  - Reduced database queries through intelligent role-based querying
+  - Optimized user-specific configuration retrieval
 
 ### AI Integration & Response Logging
 - ✅ **OpenAI Integration**: Dynamic OpenAI integration with database-driven configuration
