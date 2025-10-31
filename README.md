@@ -10,7 +10,7 @@ Spring Boot REST API backend for the Boss AI content automation platform.
 - **Database**: PostgreSQL with Spring Data JPA
 - **Caching**: Redis with Spring Data Redis
 - **Security**: Spring Security with JWT authentication
-- **AI Integration**: Spring AI with OpenAI
+- **AI Integration**: OpenAI with dynamic configuration via N8nConfig
 - **Monitoring**: Micrometer with Prometheus
 - **Email**: Spring Boot Mail Starter
 
@@ -132,8 +132,8 @@ SPRING_REDIS_HOST=localhost
 SPRING_REDIS_PORT=6379
 SPRING_REDIS_TIMEOUT=2000ms  # Supports formats: 2000ms, 2s, 2000 (default: ms)
 
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
+# OpenAI Configuration (managed via N8nConfig table)
+# No environment variables needed - configuration stored in database
 
 # JWT Security
 JWT_SECRET=your_jwt_secret_key_minimum_256_bits
@@ -162,9 +162,96 @@ FRONTEND_URL=https://yourdomain.com
 
 The application exposes RESTful APIs for:
 - User authentication and authorization
-- AI content generation
+- Configuration management (industry, content types, languages, tones, target audiences)
+- AI content generation with OpenAI integration
+- OpenAI response logging and analytics
 - Data management operations
 - Administrative functions
+
+### AI Content Generation
+
+The application includes comprehensive AI content generation capabilities with automatic logging:
+
+#### OpenAI Response Logging
+All OpenAI API interactions are automatically logged to the `openai_response_log` table for:
+- **Token Usage Tracking**: Calculate costs and manage quotas
+- **Performance Monitoring**: Track response times and identify bottlenecks
+- **Audit Trail**: Maintain complete history of AI interactions
+- **User Analytics**: Analyze usage patterns per user
+
+#### OpenaiResponseLogDto Structure
+```java
+public record OpenaiResponseLogDto(
+    Long id,
+    UserDto user,                    // Associated user who made the request
+    Map<String, Object> contentInput,    // User's input content and parameters
+    Map<String, Object> openaiResult,    // Complete OpenAI API response
+    OffsetDateTime createAt,             // Request creation timestamp
+    OffsetDateTime responseTime,         // Response received timestamp
+    @Size(max = 50) String model         // OpenAI model used (e.g., "gpt-4")
+) implements Serializable {}
+```
+
+#### Key Features
+- **JSON Storage**: Both input and output stored as JSON in PostgreSQL using `@JdbcTypeCode(SqlTypes.JSON)`
+- **User Association**: Each log entry linked to the authenticated user via `@ManyToOne` relationship
+- **Performance Tracking**: Separate timestamps for request creation and response receipt
+- **Model Tracking**: Records which OpenAI model was used for billing and analytics
+- **Flexible Data Structure**: JSON columns accommodate varying OpenAI response formats
+
+#### Content Generation Flow
+1. User submits content generation request with parameters (industry, content type, tone, etc.)
+2. System calls OpenAI API with user's input
+3. **Response automatically logged** to `openai_response_log` table
+4. Token usage calculated for billing purposes
+5. Generated content returned to user
+6. Optional: Content can be saved to user's content library
+
+### Configuration Endpoints
+
+The ConfigController provides comprehensive configuration management with three distinct endpoint categories:
+
+#### 1. Primary Configuration Endpoints (Role-Based Access)
+These endpoints implement intelligent role-based filtering:
+- **ADMIN**: Returns all available configurations from `configs_primary` table
+- **USER**: Returns only user's selected configurations from `configs_user` joined with `configs_primary`
+
+- `GET /api/v1/config/industry` - Get industry configurations with role-based access
+- `GET /api/v1/config/content_type` - Get content type configurations with role-based access
+- `GET /api/v1/config/language` - Get language configurations with role-based access
+- `GET /api/v1/config/tone` - Get tone configurations with role-based access
+- `GET /api/v1/config/target_audience` - Get target audience configurations with role-based access
+
+#### 2. Available Configuration Endpoints (All Options for Selection UI)
+These endpoints return all ConfigsPrimary data regardless of user selection - designed for selection UI and admin purposes:
+
+- `GET /api/v1/config/available/industry` - Get all available industry configurations
+- `GET /api/v1/config/available/content_type` - Get all available content type configurations
+- `GET /api/v1/config/available/language` - Get all available language configurations
+- `GET /api/v1/config/available/tone` - Get all available tone configurations
+- `GET /api/v1/config/available/target_audience` - Get all available target audience configurations
+
+#### 3. User Selection Details Endpoints (ConfigsUser Metadata)
+These endpoints return ConfigsUserDto objects with selection metadata and role-based access:
+- **ADMIN**: Returns all users' selection details
+- **USER**: Returns current user's selection details
+
+- `GET /api/v1/config/user/industry` - Get industry selection details with metadata
+- `GET /api/v1/config/user/content_type` - Get content type selection details with metadata
+- `GET /api/v1/config/user/language` - Get language selection details with metadata
+- `GET /api/v1/config/user/tone` - Get tone selection details with metadata
+- `GET /api/v1/config/user/target_audience` - Get target audience selection details with metadata
+
+#### Security & Authorization
+- **Authentication Required**: All endpoints require valid JWT Bearer token
+- **Role-Based Access Control**: Uses `@PreAuthorize("hasRole('USER') or hasRole('ADMIN')")`
+- **SecurityUtil Integration**: Automatic role detection with `SecurityUtil.isCurrentUserAdmin()`
+- **User Context Management**: Seamless access to current user via `SecurityUtil.getCurrentUserId()`
+
+#### Response Format
+- **Primary Endpoints**: Return `ConfigsPrimaryDto` objects with configuration data
+- **Available Endpoints**: Return `ConfigsPrimaryDto` objects for all available options
+- **User Selection Endpoints**: Return `ConfigsUserDto` objects with selection metadata and embedded `ConfigsPrimaryDto`
 
 API documentation is available via Spring Boot Actuator endpoints when running in development mode.
 
@@ -196,11 +283,143 @@ The application implements comprehensive security features:
 - **CORS**: Configurable cross-origin resource sharing
 - **Security Headers**: HSTS, frame options, and content type protection
 - **Role-based Access Control**: User roles and permissions system
+- **SecurityUtil**: Current user context management and role checking utilities
 
 ### API Security
 - **Protected Endpoints**: JWT authentication required for most endpoints
 - **Public Endpoints**: Authentication, health checks, and API documentation
 - **Admin Endpoints**: Restricted to users with ADMIN role
+- **Programmatic Authorization**: SecurityUtil methods for role checking in services and controllers
+
+## SecurityUtil - Role Management
+
+The `SecurityUtil` class provides convenient methods for checking user roles and managing current user context in your services and controllers.
+
+### Available Methods
+
+```java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class SecurityUtil {
+    
+    // Get current user information
+    Long getCurrentUserId()           // Returns current authenticated user's ID
+    User getCurrentUser()             // Returns current authenticated user entity
+    String getCurrentUsername()       // Returns current authenticated username
+    
+    // Role checking methods
+    boolean isCurrentUserAdmin()      // Check if current user has ADMIN role
+    boolean hasRole(String role)      // Check if current user has specific role (without ROLE_ prefix)
+}
+```
+
+### Usage Examples
+
+#### Service-Level Authorization
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ContentService {
+    
+    private final SecurityUtil securityUtil;
+    
+    public void deleteContent(Long contentId) {
+        // Only admins can delete content
+        if (!securityUtil.isCurrentUserAdmin()) {
+            throw new ForbiddenException("Admin access required");
+        }
+        
+        // Perform deletion
+        log.info("Content {} deleted by admin {}", contentId, securityUtil.getCurrentUsername());
+    }
+    
+    public ContentResponse updateContent(Long contentId, UpdateContentRequest request) {
+        Long currentUserId = securityUtil.getCurrentUserId();
+        
+        // Users can only update their own content unless they're admin
+        Content content = contentRepository.findById(contentId)
+            .orElseThrow(() -> new NotFoundException("Content not found"));
+            
+        if (!content.getCreatedBy().equals(currentUserId) && !securityUtil.isCurrentUserAdmin()) {
+            throw new ForbiddenException("You can only update your own content");
+        }
+        
+        // Perform update
+        return updateContentInTransaction(contentId, request);
+    }
+}
+```
+
+#### Controller-Level Authorization
+```java
+@RestController
+@RequestMapping("/api/v1/admin")
+@RequiredArgsConstructor
+@Slf4j
+public class AdminController {
+    
+    private final SecurityUtil securityUtil;
+    
+    @GetMapping("/users")
+    public ResponseEntity<BaseResponse<List<UserResponse>>> getAllUsers() {
+        // Method-level admin check
+        if (!securityUtil.isCurrentUserAdmin()) {
+            throw new ForbiddenException("Admin access required");
+        }
+        
+        // Get users logic...
+        List<UserResponse> users = userService.getAllUsers();
+        
+        BaseResponse<List<UserResponse>> response = new BaseResponse<List<UserResponse>>()
+            .setErrorMessage("Users retrieved successfully")
+            .setData(users);
+            
+        return ResponseEntity.ok(response);
+    }
+}
+```
+
+#### Role-Based Operations
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    
+    private final SecurityUtil securityUtil;
+    
+    public void assignRole(Long userId, String role) {
+        // Check if current user can assign roles
+        if (!securityUtil.hasRole("ADMIN") && !securityUtil.hasRole("SUPER_ADMIN")) {
+            throw new ForbiddenException("Admin or Super Admin role required");
+        }
+        
+        // Prevent privilege escalation
+        if ("SUPER_ADMIN".equals(role) && !securityUtil.hasRole("SUPER_ADMIN")) {
+            throw new ForbiddenException("Only Super Admin can assign Super Admin role");
+        }
+        
+        // Assign role logic...
+        assignRoleInTransaction(userId, role);
+    }
+}
+```
+
+### Error Handling
+
+When authorization fails, throw appropriate exceptions:
+
+```java
+// For insufficient permissions
+throw new ForbiddenException("Admin access required");
+
+// For unauthenticated users (handled automatically by SecurityUtil)
+// BusinessException("User is not authenticated") - HTTP 401
+
+// For authorization failures (handled by GlobalExceptionHandler)
+// ForbiddenException - HTTP 403
+```
 
 ## Authentication API
 
@@ -246,12 +465,35 @@ The application implements comprehensive security features:
 - ✅ **Role-Based Authentication**: Dynamic role loading from database with multiple role support
 - ✅ **Profile Picture Support**: Added `profilePictureUrl` field to AuthResponse.UserInfo for avatar functionality
 
+### Configuration Management
+- ✅ **ConfigController**: RESTful endpoints for configuration data retrieval
+- ✅ **ConfigService**: Business logic for configuration management with proper error handling
+- ✅ **ConfigsPrimaryDto**: Data transfer object for configuration responses
+- ✅ **Category-based Configuration**: Support for industry, content_type, language, tone, and target_audience categories
+- ✅ **Active Configuration Filtering**: Only returns active configurations sorted by sort order
+- ✅ **Optimized User Configuration Queries**: Enhanced repository methods for efficient user-specific configuration retrieval
+- ✅ **Performance Improvements**: Reduced database queries through optimized repository methods and direct category filtering
+
+### AI Integration & Response Logging
+- ✅ **OpenAI Integration**: Dynamic OpenAI integration with database-driven configuration
+- ✅ **N8nConfig Integration**: OpenAI settings managed via N8nConfig table for flexibility
+- ✅ **Response Logging System**: Comprehensive logging of OpenAI API interactions
+- ✅ **OpenaiResponseLog Entity**: Database entity for storing AI interaction data
+- ✅ **OpenaiResponseLogDto**: Data transfer object with corrected field types (`Map<String, Object>`)
+- ✅ **Token Tracking**: Automatic calculation and logging of OpenAI token usage
+- ✅ **Performance Monitoring**: Request and response time tracking for AI operations
+- ✅ **User Association**: All AI interactions linked to authenticated users
+- ✅ **JSON Storage**: PostgreSQL JSON columns for flexible content input and result storage
+- ✅ **Configurable Parameters**: Model, temperature, and API endpoints configurable via database
+
 ### Security Implementation
 - ✅ **Security Filter**: JWT authentication filter for request processing
 - ✅ **User Management**: UserDetailsService integration with User entity and UserRole system
 - ✅ **Security Configuration**: Modern Spring Security setup with CORS
 - ✅ **Authentication Entry Point**: Proper error handling for unauthorized requests
 - ✅ **Dynamic Role Loading**: UserService enhanced to load roles from database with fallback mechanism
+- ✅ **SecurityUtil Role Checking**: Enhanced with `isCurrentUserAdmin()` and `hasRole()` methods for programmatic authorization
+- ✅ **Role-Based Authorization Patterns**: Service and controller-level role validation utilities
 
 ### Configuration Updates
 - ✅ **Redis Configuration**: Updated to use modern Jackson2JsonRedisSerializer constructor

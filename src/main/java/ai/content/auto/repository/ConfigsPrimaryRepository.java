@@ -6,5 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface ConfigsPrimaryRepository extends JpaRepository<ConfigsPrimary, Long> {
+
     List<ConfigsPrimary> findByCategory(String category);
+
+    List<ConfigsPrimary> findByCategoryAndActiveOrderBySortOrder(String category, Boolean active);
 }

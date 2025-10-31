@@ -25,7 +25,7 @@ repositories {
 }
 
 ext {
-    set('springAiVersion', "1.0.3")
+    set('mapstructVersion', "1.6.3")
 }
 
 dependencies {
@@ -41,9 +41,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
-    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
     implementation("io.jsonwebtoken:jjwt-api:0.11.5")
-    implementation 'org.mapstruct:mapstruct:1.6.3'
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
     implementation 'org.apache.commons:commons-pool2'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -54,16 +53,12 @@ dependencies {
     // https://mvnrepository.com/artifact/io.jsonwebtoken/jjwt-jackson
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
     annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor "org.mapstruct:mapstruct-processor:${mapstructVersion}"
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testRuntimeOnly 'com.h2database:h2'
-}
-
-dependencyManagement {
-    imports {
-        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
-    }
 }
 
 tasks.named('test') {

@@ -340,6 +340,38 @@ public class GlobalExceptionHandler {
         }
 
         /**
+         * Handle not found exceptions
+         */
+        @ExceptionHandler(NotFoundException.class)
+        public ResponseEntity<ai.content.auto.dtos.BaseResponse<Object>> handleNotFoundException(
+                        NotFoundException ex, HttpServletRequest request) {
+
+                ai.content.auto.dtos.BaseResponse<Object> response = new ai.content.auto.dtos.BaseResponse<>()
+                                .setErrorCode("NOT_FOUND")
+                                .setErrorMessage(ex.getMessage())
+                                .setData(null);
+
+                log.warn("Not found exception: {} at {}", ex.getMessage(), request.getRequestURI());
+                return new ResponseEntity<>(response, ex.getStatus());
+        }
+
+        /**
+         * Handle internal server exceptions
+         */
+        @ExceptionHandler(InternalServerException.class)
+        public ResponseEntity<ai.content.auto.dtos.BaseResponse<Object>> handleInternalServerException(
+                        InternalServerException ex, HttpServletRequest request) {
+
+                ai.content.auto.dtos.BaseResponse<Object> response = new ai.content.auto.dtos.BaseResponse<>()
+                                .setErrorCode("INTERNAL_ERROR")
+                                .setErrorMessage(ex.getMessage())
+                                .setData(null);
+
+                log.error("Internal server exception: {} at {}", ex.getMessage(), request.getRequestURI(), ex);
+                return new ResponseEntity<>(response, ex.getStatus());
+        }
+
+        /**
          * Handle all other exceptions
          */
         @ExceptionHandler(Exception.class)

@@ -1,7 +1,19 @@
 package ai.content.auto.dtos;
 
-/**
- * DTO for {@link ai.content.auto.entity.OpenaiResponseLog}
- */
-public record OpenaiResponseLogDto(){
-  }
+import jakarta.validation.constraints.Size;
+
+import java.io.Serializable;
+import java.time.OffsetDateTime;
+import java.util.Map;
+
+/** DTO for {@link ai.content.auto.entity.OpenaiResponseLog} */
+public record OpenaiResponseLogDto(
+        Long id,
+        UserDto user,
+        Map<String, Object> contentInput,
+        Map<String, Object> openaiResult,
+        OffsetDateTime createAt,
+        OffsetDateTime responseTime,
+        @Size(max = 50) String model)
+        implements Serializable {
+}
