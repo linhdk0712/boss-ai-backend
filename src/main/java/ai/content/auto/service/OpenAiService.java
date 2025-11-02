@@ -134,7 +134,7 @@ public class OpenAiService {
      */
     private void validateOpenAiRequest(Map<String, Object> request) {
         @SuppressWarnings("unchecked")
-        List<Map<String, String>> messages = (List<Map<String, String>>) request.get("messages");
+        List<Map<String, String>> messages = (List<Map<String, String>>) request.get("input");
 
         if (messages == null || messages.isEmpty()) {
             throw new BusinessException("No messages in OpenAI request");
@@ -147,7 +147,7 @@ public class OpenAiService {
         int estimatedTokens = totalChars / 4;
 
         // Check if prompt is too long (leave room for response)
-        Long maxTokens = (Long) request.get("max_tokens");
+        Long maxTokens = (Long) request.get("max_output_tokens");
         if (estimatedTokens > ContentConstants.MAX_PROMPT_TOKENS - maxTokens) {
             log.warn("Prompt may be too long: {} estimated tokens", estimatedTokens);
         }
@@ -307,15 +307,18 @@ public class OpenAiService {
             ContentGenerateRequest request, N8nConfig n8nConfig, Long maxTokens) {
         Map<String, Object> openaiRequest = new HashMap<>();
         openaiRequest.put("model", n8nConfig.getModel());
-        openaiRequest.put("max_tokens", maxTokens);
+        openaiRequest.put("max_output_tokens", maxTokens);
         openaiRequest.put("temperature", n8nConfig.getTemperature());
-        openaiRequest.put("top_p", ContentConstants.TOP_P_DEFAULT); // Nucleus sampling for better quality
-        openaiRequest.put("frequency_penalty", ContentConstants.FREQUENCY_PENALTY_DEFAULT); // Reduce repetition
-        openaiRequest.put("presence_penalty", ContentConstants.PRESENCE_PENALTY_DEFAULT); // Encourage diverse content
+        // openaiRequest.put("top_p", ContentConstants.TOP_P_DEFAULT); // Nucleus
+        // sampling for better quality
+        // openaiRequest.put("frequency_penalty",
+        // ContentConstants.FREQUENCY_PENALTY_DEFAULT); // Reduce repetition
+        // openaiRequest.put("presence_penalty",
+        // ContentConstants.PRESENCE_PENALTY_DEFAULT); // Encourage diverse content
 
         // Build structured messages with system and user prompts
         List<Map<String, String>> messages = buildMessages(request);
-        openaiRequest.put("messages", messages);
+        openaiRequest.put("input", messages);
 
         return openaiRequest;
     }
@@ -640,7 +643,7 @@ public class OpenAiService {
 
         try {
             // Check for API errors first
-            if (responseBody.containsKey("error")) {
+            if (responseBody.containsKey("error") && responseBody.get("error") != null) {
                 Map<String, Object> error = (Map<String, Object>) responseBody.get("error");
                 String errorMessage = (String) error.get("message");
                 log.error("OpenAI API error: {}", errorMessage);
@@ -650,30 +653,49 @@ public class OpenAiService {
                 return result;
             }
 
-            Object choicesObj = responseBody.get("choices");
-            if (choicesObj instanceof List<?> choicesList && !choicesList.isEmpty()) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) choicesList;
-                Map<String, Object> firstChoice = choices.get(0);
+            // Check response status
+            String status = (String) responseBody.get("status");
+            if (!"completed".equals(status)) {
+                result.put("status", ContentConstants.STATUS_FAILED);
+                result.put("errorMessage", "OpenAI response status is not completed: " + status);
+                return result;
+            }
 
-                // Check finish reason
-                String finishReason = (String) firstChoice.get("finish_reason");
-                if (StringUtil.equalsIgnoreCase(finishReason, ContentConstants.OPENAI_FINISH_REASON_LENGTH)) {
-                    log.warn("Content was truncated due to max_tokens limit");
+            // Process new OpenAI response format with 'output' array
+            Object outputObj = responseBody.get("output");
+            if (outputObj instanceof List<?> outputList && !outputList.isEmpty()) {
+                List<Map<String, Object>> outputs = (List<Map<String, Object>>) outputList;
+                Map<String, Object> firstOutput = outputs.get(0);
+
+                // Check output status
+                String outputStatus = (String) firstOutput.get("status");
+                if (!"completed".equals(outputStatus)) {
+                    log.warn("Output status is not completed: {}", outputStatus);
                 }
 
-                Object messageObj = firstChoice.get("message");
-                if (messageObj instanceof Map<?, ?>) {
-                    Map<String, Object> message = (Map<String, Object>) messageObj;
-                    String content = (String) message.get("content");
+                // Extract content from the content array
+                Object contentObj = firstOutput.get("content");
+                if (contentObj instanceof List<?> contentList && !contentList.isEmpty()) {
+                    List<Map<String, Object>> contents = (List<Map<String, Object>>) contentList;
 
-                    if (StringUtil.isBlank(content)) {
+                    // Find the text content
+                    String generatedText = null;
+                    for (Map<String, Object> contentItem : contents) {
+                        String type = (String) contentItem.get("type");
+                        if ("output_text".equals(type)) {
+                            generatedText = (String) contentItem.get("text");
+                            break;
+                        }
+                    }
+
+                    if (StringUtil.isBlank(generatedText)) {
                         result.put("status", ContentConstants.STATUS_FAILED);
                         result.put("errorMessage", "Empty content generated by OpenAI");
                         return result;
                     }
 
                     // Clean and process content
-                    String cleanedContent = cleanGeneratedContent(content);
+                    String cleanedContent = cleanGeneratedContent(generatedText);
 
                     result.put("generatedContent", cleanedContent);
                     result.put("wordCount", countWords(cleanedContent));
@@ -684,10 +706,14 @@ public class OpenAiService {
                     // Calculate quality metrics
                     result.put("qualityScore", calculateQualityScore(cleanedContent));
                     result.put("readabilityScore", calculateReadabilityScore(cleanedContent));
+                } else {
+                    result.put("status", ContentConstants.STATUS_FAILED);
+                    result.put("errorMessage", "No content array found in OpenAI output");
+                    return result;
                 }
             } else {
                 result.put("status", ContentConstants.STATUS_FAILED);
-                result.put("errorMessage", "No content choices returned from OpenAI");
+                result.put("errorMessage", "No output array returned from OpenAI");
                 return result;
             }
 
@@ -696,8 +722,8 @@ public class OpenAiService {
             if (usageObj instanceof Map<?, ?>) {
                 Map<String, Object> usage = (Map<String, Object>) usageObj;
                 result.put("tokensUsed", usage.get("total_tokens"));
-                result.put("promptTokens", usage.get("prompt_tokens"));
-                result.put("completionTokens", usage.get("completion_tokens"));
+                result.put("promptTokens", usage.get("input_tokens"));
+                result.put("completionTokens", usage.get("output_tokens"));
 
                 // Calculate cost estimation (approximate)
                 Integer totalTokens = (Integer) usage.get("total_tokens");
@@ -708,6 +734,9 @@ public class OpenAiService {
 
             result.put("processingTimeMs", System.currentTimeMillis() - startTime);
             result.put("status", ContentConstants.STATUS_COMPLETED);
+
+            log.debug("Successfully processed OpenAI response - content length: {}, tokens used: {}",
+                    result.get("characterCount"), result.get("tokensUsed"));
 
         } catch (Exception e) {
             log.error("Error processing OpenAI response", e);

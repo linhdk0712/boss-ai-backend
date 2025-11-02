@@ -37,8 +37,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        use_sql_comments: true
+        format_sql: false
+        use_sql_comments: false
         jdbc:
           batch_size: 25
         order_inserts: true
@@ -118,14 +118,20 @@ app:
       - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
 
 
-# Logging Configuration
+# Logging Configuration - No SQL Queries in Logs
 logging:
   level:
-    ai.content.auto: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    com.zaxxer.hikari: DEBUG
+    ai.content.auto: INFO
+    org.springframework.security: WARN
+    # Tắt tất cả SQL logging
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.hibernate.engine.jdbc: WARN
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
+    com.zaxxer.hikari: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

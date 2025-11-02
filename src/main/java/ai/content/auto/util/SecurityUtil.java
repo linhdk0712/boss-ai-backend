@@ -1,17 +1,20 @@
 package ai.content.auto.util;
 
-import ai.content.auto.entity.User;
-import ai.content.auto.exception.BusinessException;
-import ai.content.auto.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import ai.content.auto.entity.User;
+import ai.content.auto.exception.BusinessException;
+import ai.content.auto.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Utility class for security-related operations
+ * Uses request-scoped caching to avoid redundant database queries within a
+ * single request
  */
 @Component
 @RequiredArgsConstructor
@@ -20,49 +23,39 @@ public class SecurityUtil {
 
     private final UserRepository userRepository;
 
+    // Request-scoped cache to avoid multiple database queries for the same user in
+    // a single request
+    private static final ThreadLocal<User> CURRENT_USER_CACHE = new ThreadLocal<>();
+
     /**
      * Get the current authenticated user's ID from SecurityContextHolder
+     * Uses cached user from request scope if available to avoid redundant database
+     * queries
      * 
      * @return Current user's ID
      * @throws BusinessException if user is not authenticated or not found
      */
     public Long getCurrentUserId() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-            if (authentication == null || !authentication.isAuthenticated()) {
-                throw new BusinessException("User is not authenticated");
-            }
-
-            Object principal = authentication.getPrincipal();
-            if (!(principal instanceof UserDetails)) {
-                throw new BusinessException("Invalid authentication principal");
-            }
-
-            UserDetails userDetails = (UserDetails) principal;
-            String username = userDetails.getUsername();
-
-            User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new BusinessException("User not found: " + username));
-
-            log.debug("Current authenticated user ID: {} (username: {})", user.getId(), username);
-            return user.getId();
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error getting current user ID", e);
-            throw new BusinessException("Failed to get current user information");
-        }
+        User user = getCurrentUser();
+        return user.getId();
     }
 
     /**
      * Get the current authenticated user entity from SecurityContextHolder
+     * Uses request-scoped cache to avoid redundant database queries within a single
+     * request
      * 
      * @return Current user entity
      * @throws BusinessException if user is not authenticated or not found
      */
     public User getCurrentUser() {
+        // Check cache first
+        User cachedUser = CURRENT_USER_CACHE.get();
+        if (cachedUser != null) {
+            log.debug("Returning cached user: {} (ID: {})", cachedUser.getUsername(), cachedUser.getId());
+            return cachedUser;
+        }
+
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -80,6 +73,9 @@ public class SecurityUtil {
 
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new BusinessException("User not found: " + username));
+
+            // Cache the user for this request
+            CURRENT_USER_CACHE.set(user);
 
             log.debug("Current authenticated user: {} (ID: {})", username, user.getId());
             return user;
@@ -90,6 +86,16 @@ public class SecurityUtil {
             log.error("Error getting current user", e);
             throw new BusinessException("Failed to get current user information");
         }
+    }
+
+    /**
+     * Clear the request-scoped user cache
+     * Should be called at the end of request processing (e.g., in a filter or
+     * interceptor)
+     * to prevent memory leaks
+     */
+    public void clearUserCache() {
+        CURRENT_USER_CACHE.remove();
     }
 
     /**

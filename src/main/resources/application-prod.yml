@@ -1,0 +1,27 @@
+# Production Configuration - No SQL Logging
+spring:
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+        show_sql: false
+
+# Production Logging - Minimal SQL logging
+logging:
+  level:
+    root: WARN
+    ai.content.auto: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.hibernate.engine.jdbc: WARN
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
+    com.zaxxer.hikari: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

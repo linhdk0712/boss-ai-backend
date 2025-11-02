@@ -73,7 +73,7 @@ public class DatabaseConfig {
         config.addDataSourceProperty("rewriteBatchedStatements", "true");
         config.addDataSourceProperty("cacheResultSetMetadata", "true");
         config.addDataSourceProperty("cacheServerConfiguration", "true");
-        config.addDataSourceProperty("elideSetAutoCommits", "true");
+        // Removed elideSetAutoCommits to avoid transaction conflicts
         config.addDataSourceProperty("maintainTimeStats", "false");
 
         log.info("Initializing HikariCP DataSource with pool size: {}", maximumPoolSize);
@@ -117,13 +117,13 @@ public class DatabaseConfig {
         properties.setProperty("hibernate.hbm2ddl.auto", "validate");
         properties.setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.setProperty("hibernate.show_sql", "false");
-        properties.setProperty("hibernate.format_sql", "true");
-        properties.setProperty("hibernate.use_sql_comments", "true");
+        properties.setProperty("hibernate.format_sql", "false");
+        properties.setProperty("hibernate.use_sql_comments", "false");
         properties.setProperty("hibernate.jdbc.batch_size", "25");
         properties.setProperty("hibernate.order_inserts", "true");
         properties.setProperty("hibernate.order_updates", "true");
         properties.setProperty("hibernate.jdbc.batch_versioned_data", "true");
-        properties.setProperty("hibernate.connection.provider_disables_autocommit", "true");
+        // Removed provider_disables_autocommit to avoid transaction conflicts
 
         em.setJpaProperties(properties);
 
