@@ -1,14 +1,19 @@
 package ai.content.auto.service.ai;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service for AI provider optimization and intelligent routing
@@ -137,21 +142,18 @@ public class AIProviderOptimizationService {
 
         ProviderPerformanceAnalysis analysis = ProviderPerformanceAnalysis.builder()
                 .providerName(providerName)
-                .analysisWindow(hours)
-                .currentSuccessRate(currentSuccessRate)
-                .currentAvgResponseTime(currentAvgResponseTime)
-                .currentQualityScore(currentQualityScore)
-                .currentErrorRate(currentErrorRate)
-                .previousSuccessRate(previousSuccessRate)
-                .previousAvgResponseTime(previousAvgResponseTime)
-                .previousQualityScore(previousQualityScore)
-                .trends(calculateEnhancedPerformanceTrends(currentMetrics, historicalMetrics))
+                .analysisHours(hours)
+                .analysisStartTime(Instant.now().minusSeconds(hours * 3600L))
+                .analysisEndTime(Instant.now())
+                .averageSuccessRate(currentSuccessRate)
+                .averageResponseTime(currentAvgResponseTime)
+                .averageQualityScore(currentQualityScore)
+                .totalRequests(Long.parseLong(currentMetrics.getOrDefault("total_requests", "0").toString()))
+                .failedRequests(Long.parseLong(currentMetrics.getOrDefault("failed_requests", "0").toString()))
+                .performanceTrends(calculateEnhancedPerformanceTrends(currentMetrics, historicalMetrics))
                 .recommendations(generateEnhancedPerformanceRecommendations(currentMetrics, historicalMetrics))
-                .alerts(generatePerformanceAlerts(currentMetrics))
                 .riskLevel(calculateEnhancedRiskLevel(currentMetrics))
-                .predictedSuccessRate(predictions.predictedSuccessRate)
-                .predictedResponseTime(predictions.predictedResponseTime)
-                .confidenceLevel(predictions.confidenceLevel)
+                .predictions(generatePerformancePredictions(currentMetrics, historicalMetrics))
                 .build();
 
         // Cache the analysis
@@ -159,7 +161,7 @@ public class AIProviderOptimizationService {
 
         log.info(
                 "Enhanced performance analysis completed for provider: {} - risk level: {}, predicted success rate: {:.2f}%",
-                providerName, analysis.getRiskLevel(), predictions.predictedSuccessRate * 100);
+                providerName, analysis.getRiskLevel(), predictions.getPredictedSuccessRate() * 100);
 
         return analysis;
     }
@@ -877,22 +879,6 @@ public class AIProviderOptimizationService {
     }
 
     // Helper classes
-    private static class CostMetrics {
-        final double currentAverageCost;
-        final double currentTotalCost;
-        final long totalRequests;
-        final double potentialSavingsPerRequest;
-        final double potentialMonthlySavings;
-
-        CostMetrics(double currentAverageCost, double currentTotalCost, long totalRequests,
-                double potentialSavingsPerRequest, double potentialMonthlySavings) {
-            this.currentAverageCost = currentAverageCost;
-            this.currentTotalCost = currentTotalCost;
-            this.totalRequests = totalRequests;
-            this.potentialSavingsPerRequest = potentialSavingsPerRequest;
-            this.potentialMonthlySavings = potentialMonthlySavings;
-        }
-    }
 
     private List<CostOptimizationAction> generateCostOptimizationActions(Map<String, CostAnalysis> costAnalysis) {
         List<CostOptimizationAction> actions = new ArrayList<>();
@@ -1203,14 +1189,22 @@ public class AIProviderOptimizationService {
 
     private List<PerformanceTrend> calculatePerformanceTrends(
             Map<String, Object> current, Map<String, Object> historical) {
-        // Simplified trend calculation
+        // Provide a minimal performance trend point using available fields
         List<PerformanceTrend> trends = new ArrayList<>();
 
+        Instant now = Instant.now();
+        double currentSuccessRate = Double.parseDouble(current.getOrDefault("success_rate", "0.0").toString());
+        long currentResponseTime = Long.parseLong(current.getOrDefault("avg_response_time", "0").toString());
+        double currentQuality = Double.parseDouble(current.getOrDefault("avg_quality_score", "0.0").toString());
+        long requestCount = Long.parseLong(current.getOrDefault("total_requests", "0").toString());
+
         trends.add(PerformanceTrend.builder()
-                .metric("success_rate")
-                .trend("STABLE")
-                .change(0.0)
-                .description("Success rate remains stable")
+                .timestamp(now)
+                .successRate(currentSuccessRate)
+                .responseTime(currentResponseTime)
+                .qualityScore(currentQuality)
+                .requestCount(requestCount)
+                .trendIndicator("STABLE")
                 .build());
 
         return trends;
@@ -1301,11 +1295,12 @@ public class AIProviderOptimizationService {
         double successRateChange = ((currentSuccessRate - historicalSuccessRate) / historicalSuccessRate) * 100;
 
         trends.add(PerformanceTrend.builder()
-                .metric("success_rate")
-                .trend(determineTrend(successRateChange))
-                .change(successRateChange)
-                .description(String.format("Success rate %s by %.1f%%",
-                        successRateChange > 0 ? "improved" : "declined", Math.abs(successRateChange)))
+                .timestamp(Instant.now())
+                .successRate(currentSuccessRate)
+                .responseTime(Long.parseLong(current.getOrDefault("avg_response_time", "0").toString()))
+                .qualityScore(Double.parseDouble(current.getOrDefault("avg_quality_score", "0.0").toString()))
+                .requestCount(Long.parseLong(current.getOrDefault("total_requests", "0").toString()))
+                .trendIndicator(determineTrend(successRateChange))
                 .build());
 
         // Response time trend
@@ -1315,11 +1310,12 @@ public class AIProviderOptimizationService {
             double responseTimeChange = ((double) (currentResponseTime - historicalResponseTime)
                     / historicalResponseTime) * 100;
             trends.add(PerformanceTrend.builder()
-                    .metric("response_time")
-                    .trend(determineTrend(-responseTimeChange)) // Negative because lower is better
-                    .change(responseTimeChange)
-                    .description(String.format("Response time %s by %.1f%%",
-                            responseTimeChange > 0 ? "increased" : "decreased", Math.abs(responseTimeChange)))
+                    .timestamp(Instant.now())
+                    .successRate(Double.parseDouble(current.getOrDefault("success_rate", "0.0").toString()))
+                    .responseTime(currentResponseTime)
+                    .qualityScore(Double.parseDouble(current.getOrDefault("avg_quality_score", "0.0").toString()))
+                    .requestCount(Long.parseLong(current.getOrDefault("total_requests", "0").toString()))
+                    .trendIndicator(determineTrend(-responseTimeChange))
                     .build());
         }
 
@@ -1329,11 +1325,12 @@ public class AIProviderOptimizationService {
         if (historicalQuality > 0) {
             double qualityChange = ((currentQuality - historicalQuality) / historicalQuality) * 100;
             trends.add(PerformanceTrend.builder()
-                    .metric("quality_score")
-                    .trend(determineTrend(qualityChange))
-                    .change(qualityChange)
-                    .description(String.format("Quality score %s by %.1f%%",
-                            qualityChange > 0 ? "improved" : "declined", Math.abs(qualityChange)))
+                    .timestamp(Instant.now())
+                    .successRate(Double.parseDouble(current.getOrDefault("success_rate", "0.0").toString()))
+                    .responseTime(Long.parseLong(current.getOrDefault("avg_response_time", "0").toString()))
+                    .qualityScore(currentQuality)
+                    .requestCount(Long.parseLong(current.getOrDefault("total_requests", "0").toString()))
+                    .trendIndicator(determineTrend(qualityChange))
                     .build());
         }
 
@@ -1440,7 +1437,13 @@ public class AIProviderOptimizationService {
         // Calculate confidence based on data stability
         String confidenceLevel = calculatePredictionConfidence(current, historical);
 
-        return new PredictionResult(predictedSuccessRate, predictedResponseTime, confidenceLevel);
+        return PredictionResult.builder()
+                .predictedSuccessRate(predictedSuccessRate)
+                .predictedResponseTime(predictedResponseTime)
+                .predictedQualityScore(Double.parseDouble(current.getOrDefault("avg_quality_score", "0.0").toString()))
+                .confidenceLevel(confidenceLevel)
+                .predictionFactors(List.of("trend_extrapolation"))
+                .build();
     }
 
     private String calculatePredictionConfidence(Map<String, Object> current, Map<String, Object> historical) {
@@ -1515,25 +1518,25 @@ public class AIProviderOptimizationService {
     }
 
     private Map<String, Double> calculateIntelligentRoutingWeights(SystemState systemState, RoutingStrategy strategy) {
-        Map<String, Double> weights = new HashMap<>();
+        Map<String, Double> baseWeights;
 
         switch (strategy) {
             case LOAD_BALANCED:
-                weights = calculateLoadBalancedWeights(systemState);
+                baseWeights = calculateLoadBalancedWeights(systemState);
                 break;
             case PERFORMANCE_BASED:
-                weights = calculatePerformanceBasedWeights(systemState);
+                baseWeights = calculatePerformanceBasedWeights(systemState);
                 break;
             case ROUND_ROBIN:
             default:
-                weights = calculateEqualWeights();
+                baseWeights = calculateEqualWeights();
                 break;
         }
 
         // Apply intelligent adjustments
-        weights = applyIntelligentWeightAdjustments(weights, systemState);
+        Map<String, Double> adjusted = applyIntelligentWeightAdjustments(baseWeights, systemState);
 
-        return weights;
+        return adjusted;
     }
 
     private Map<String, Double> calculateLoadBalancedWeights(SystemState systemState) {
@@ -1560,13 +1563,13 @@ public class AIProviderOptimizationService {
         double totalScore = systemState.providerScores.values().stream()
                 .mapToDouble(Double::doubleValue).sum();
 
-        if (totalScore > 0) {
-            systemState.providerScores.forEach((provider, score) -> {
-                weights.put(provider, score / totalScore);
-            });
-        } else {
-            weights = calculateEqualWeights();
+        if (totalScore <= 0) {
+            return calculateEqualWeights();
         }
+
+        systemState.providerScores.forEach((provider, score) -> {
+            weights.put(provider, score / totalScore);
+        });
 
         return weights;
     }
@@ -1746,23 +1749,10 @@ public class AIProviderOptimizationService {
         }
     }
 
-    // Helper class for predictions
-    private static class PredictionResult {
-        final Double predictedSuccessRate;
-        final Long predictedResponseTime;
-        final String confidenceLevel;
-
-        PredictionResult(Double predictedSuccessRate, Long predictedResponseTime, String confidenceLevel) {
-            this.predictedSuccessRate = predictedSuccessRate;
-            this.predictedResponseTime = predictedResponseTime;
-            this.confidenceLevel = confidenceLevel;
-        }
-    }
+    // Removed local PredictionResult; using
+    // ProviderPerformanceAnalysis.PredictionResult instead
 
     // Enums and inner classes
-    public enum RoutingStrategy {
-        ROUND_ROBIN,
-        LOAD_BALANCED,
-        PERFORMANCE_BASED
-    }
+    // Removed local RoutingStrategy enum; using top-level
+    // ai.content.auto.service.ai.RoutingStrategy
 }

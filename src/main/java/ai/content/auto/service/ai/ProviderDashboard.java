@@ -1,11 +1,11 @@
 package ai.content.auto.service.ai;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * Comprehensive provider dashboard data
@@ -67,16 +67,6 @@ class ProviderPerformancePoint {
 }
 
 /**
- * Provider comparison data
- */
-@Data
-@Builder
-class ProviderComparisonData {
-    private List<ProviderComparisonItem> providers;
-    private Instant generatedAt;
-}
-
-/**
  * Individual provider comparison item
  */
 @Data
@@ -92,13 +82,4 @@ class ProviderComparisonItem {
     private long totalRequests;
 }
 
-/**
- * Performance insights and recommendations
- */
-@Data
-@Builder
-class ProviderPerformanceInsights {
-    private List<String> insights;
-    private List<String> recommendations;
-    private Instant generatedAt;
-}
+// Performance insights moved to ProviderPerformanceInsights.java

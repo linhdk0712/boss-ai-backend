@@ -1,26 +1,37 @@
 package ai.content.auto.entity;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import org.hibernate.annotations.ColumnDefault;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.type.SqlTypes;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * Entity representing content performance metrics and analytics data.
@@ -55,35 +66,41 @@ public class ContentPerformance {
     @Min(value = 0, message = "View count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "view_count", nullable = false)
+    @Builder.Default
     private Integer viewCount = 0;
 
     @Min(value = 0, message = "Unique view count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "unique_view_count", nullable = false)
+    @Builder.Default
     private Integer uniqueViewCount = 0;
 
     @DecimalMin(value = "0.0", message = "Engagement rate must be between 0 and 1")
     @DecimalMax(value = "1.0", message = "Engagement rate must be between 0 and 1")
     @ColumnDefault("0.0000")
     @Column(name = "engagement_rate", precision = 5, scale = 4)
+    @Builder.Default
     private BigDecimal engagementRate = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", message = "Click through rate must be between 0 and 1")
     @DecimalMax(value = "1.0", message = "Click through rate must be between 0 and 1")
     @ColumnDefault("0.0000")
     @Column(name = "click_through_rate", precision = 5, scale = 4)
+    @Builder.Default
     private BigDecimal clickThroughRate = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", message = "Conversion rate must be between 0 and 1")
     @DecimalMax(value = "1.0", message = "Conversion rate must be between 0 and 1")
     @ColumnDefault("0.0000")
     @Column(name = "conversion_rate", precision = 5, scale = 4)
+    @Builder.Default
     private BigDecimal conversionRate = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", message = "Bounce rate must be between 0 and 1")
     @DecimalMax(value = "1.0", message = "Bounce rate must be between 0 and 1")
     @ColumnDefault("0.0000")
     @Column(name = "bounce_rate", precision = 5, scale = 4)
+    @Builder.Default
     private BigDecimal bounceRate = BigDecimal.ZERO;
 
     // Time-based metrics
@@ -92,6 +109,7 @@ public class ContentPerformance {
 
     @ColumnDefault("0")
     @Column(name = "total_time_spent", nullable = false)
+    @Builder.Default
     private Integer totalTimeSpent = 0; // in seconds
 
     @Column(name = "session_duration_avg")
@@ -101,31 +119,37 @@ public class ContentPerformance {
     @Min(value = 0, message = "Share count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "share_count", nullable = false)
+    @Builder.Default
     private Integer shareCount = 0;
 
     @Min(value = 0, message = "Like count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "like_count", nullable = false)
+    @Builder.Default
     private Integer likeCount = 0;
 
     @Min(value = 0, message = "Comment count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "comment_count", nullable = false)
+    @Builder.Default
     private Integer commentCount = 0;
 
     @ColumnDefault("0.0000")
     @Column(name = "social_engagement_score", precision = 8, scale = 4)
+    @Builder.Default
     private BigDecimal socialEngagementScore = BigDecimal.ZERO;
 
     // SEO and search metrics
     @Min(value = 0, message = "Search impressions must be non-negative")
     @ColumnDefault("0")
     @Column(name = "search_impressions", nullable = false)
+    @Builder.Default
     private Integer searchImpressions = 0;
 
     @Min(value = 0, message = "Search clicks must be non-negative")
     @ColumnDefault("0")
     @Column(name = "search_clicks", nullable = false)
+    @Builder.Default
     private Integer searchClicks = 0;
 
     @Column(name = "search_position_avg", precision = 5, scale = 2)
@@ -134,6 +158,7 @@ public class ContentPerformance {
     @Min(value = 0, message = "Organic traffic count must be non-negative")
     @ColumnDefault("0")
     @Column(name = "organic_traffic_count", nullable = false)
+    @Builder.Default
     private Integer organicTrafficCount = 0;
 
     // Content quality metrics
@@ -167,6 +192,7 @@ public class ContentPerformance {
     @Size(max = 20)
     @ColumnDefault("'STABLE'")
     @Column(name = "performance_trend", length = 20)
+    @Builder.Default
     private String performanceTrend = "STABLE";
 
     // Geographic and demographic data stored as JSONB
@@ -193,6 +219,7 @@ public class ContentPerformance {
     // Revenue and conversion metrics
     @ColumnDefault("0.00")
     @Column(name = "revenue_generated", precision = 12, scale = 2)
+    @Builder.Default
     private BigDecimal revenueGenerated = BigDecimal.ZERO;
 
     @Column(name = "cost_per_acquisition", precision = 10, scale = 4)
@@ -203,6 +230,7 @@ public class ContentPerformance {
 
     @ColumnDefault("0.00")
     @Column(name = "conversion_value", precision = 12, scale = 2)
+    @Builder.Default
     private BigDecimal conversionValue = BigDecimal.ZERO;
 
     // Time period for metrics
@@ -210,6 +238,7 @@ public class ContentPerformance {
     @Size(max = 20)
     @ColumnDefault("'DAILY'")
     @Column(name = "measurement_period", nullable = false, length = 20)
+    @Builder.Default
     private String measurementPeriod = "DAILY";
 
     @NotNull
@@ -225,18 +254,21 @@ public class ContentPerformance {
     @Size(max = 50)
     @ColumnDefault("'SYSTEM'")
     @Column(name = "data_source", nullable = false, length = 50)
+    @Builder.Default
     private String dataSource = "SYSTEM";
 
     @NotNull
     @Size(max = 50)
     @ColumnDefault("'AUTOMATIC'")
     @Column(name = "collection_method", nullable = false, length = 50)
+    @Builder.Default
     private String collectionMethod = "AUTOMATIC";
 
     @DecimalMin(value = "0.0", message = "Data quality score must be between 0 and 1")
     @DecimalMax(value = "1.0", message = "Data quality score must be between 0 and 1")
     @ColumnDefault("1.00")
     @Column(name = "data_quality_score", precision = 3, scale = 2)
+    @Builder.Default
     private BigDecimal dataQualityScore = BigDecimal.ONE;
 
     @ColumnDefault("CURRENT_TIMESTAMP")

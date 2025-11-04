@@ -1,11 +1,11 @@
 package ai.content.auto.service.ai;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * Provider routing strategy configuration
@@ -31,14 +31,4 @@ public class ProviderRoutingStrategy {
     // Monitoring
     private Map<String, Integer> requestCounts;
     private Map<String, Long> lastUsed;
-}
-
-@Data
-@Builder
-class ProviderLoadInfo {
-    private double currentLoad;
-    private long averageResponseTime;
-    private double successRate;
-    private boolean isOverloaded;
-    private int queueDepth;
 }

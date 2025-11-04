@@ -1,19 +1,23 @@
 package ai.content.auto.service.ai;
 
-import ai.content.auto.service.monitoring.SystemAlert;
-import ai.content.auto.service.monitoring.SystemMonitoringService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import ai.content.auto.service.monitoring.SystemAlert;
+import ai.content.auto.service.monitoring.SystemMonitoringService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Service for AI provider alerting and monitoring
@@ -198,7 +202,7 @@ public class AIProviderAlertingService {
         try {
             // Create system alert
             SystemAlert alert = systemMonitoringService.createAlert(
-                    SystemMonitoringService.AlertType.AI_PROVIDER,
+                    SystemMonitoringService.AlertType.SYSTEM_ERROR,
                     String.format("[%s] %s", providerName, message),
                     severity);
 
@@ -244,7 +248,9 @@ public class AIProviderAlertingService {
             alertData.put("severity", severity.name());
             alertData.put("message", message);
             alertData.put("timestamp", Instant.now().toEpochMilli());
-            alertData.put("alert_id", alert.getId());
+            alertData.put("alert_timestamp", alert.getTimestamp() != null
+                    ? alert.getTimestamp().toEpochMilli()
+                    : Instant.now().toEpochMilli());
 
             // Store in Redis list (keep last 100 alerts per provider)
             redisTemplate.opsForList().leftPush(alertHistoryKey, alertData);

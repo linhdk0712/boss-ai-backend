@@ -1,13 +1,14 @@
 package ai.content.auto.mapper;
 
-import ai.content.auto.dtos.WorkspaceDto;
-import ai.content.auto.entity.Workspace;
+import java.time.Instant;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.mapstruct.factory.Mappers;
 
-import java.time.Instant;
+import ai.content.auto.dtos.WorkspaceDto;
+import ai.content.auto.entity.Workspace;
 
 @Mapper(componentModel = "spring")
 public interface WorkspaceMapper {
@@ -32,6 +33,10 @@ public interface WorkspaceMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "subscriptionStartedAt", ignore = true)
+    @Mapping(target = "lastBillingDate", ignore = true)
+    @Mapping(target = "nextBillingDate", ignore = true)
+    @Mapping(target = "usageResetDate", ignore = true)
     Workspace toEntity(WorkspaceDto workspaceDto);
 
     @Named("calculateMemberUsagePercent")
