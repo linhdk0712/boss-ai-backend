@@ -1,27 +1,27 @@
-# Production Configuration - No SQL Logging
-spring:
-  jpa:
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
-        use_sql_comments: false
-        show_sql: false
+server:
+  port: 8081
 
-# Production Logging - Minimal SQL logging
+# Production CORS Configuration
+app:
+  cors:
+    allowed-origins: https://bossai.com.vn
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS,PATCH
+    allowed-headers: "*"
+    allow-credentials: true
+    max-age: 3600
+
+# Production Database Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/boss-ai
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+
+# Production Logging
 logging:
   level:
-    root: WARN
     ai.content.auto: INFO
     org.springframework.security: WARN
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
-    org.hibernate.type.descriptor.sql: WARN
-    org.hibernate.engine.jdbc: WARN
-    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
-    com.zaxxer.hikari: WARN
-    org.springframework.orm.jpa: WARN
-    org.springframework.transaction: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    org.springframework.web.cors: DEBUG  # Enable CORS debugging
+  file:
+    name: /var/log/boss-ai/boss-ai-backend.log

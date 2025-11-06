@@ -93,8 +93,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Allowed origins
+        // Allowed origins - use both patterns and specific origins for production
         configuration.setAllowedOriginPatterns(Arrays.asList(allowedOrigins));
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
 
         // Allowed methods
         configuration.setAllowedMethods(Arrays.asList(allowedMethods));
@@ -122,6 +123,8 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         log.info("CORS configured with allowed origins: {}", Arrays.toString(allowedOrigins));
+        log.info("CORS allowed methods: {}", Arrays.toString(allowedMethods));
+        log.info("CORS allow credentials: {}", allowCredentials);
 
         return source;
     }
