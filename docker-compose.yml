@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: boss-ai-backend
+    ports:
+      - "8081:8080" # publish HTTP ra host
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://localhost:5433/boss-ai}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-password}
+      # Kết nối Redis qua DNS nội bộ container
+      REDIS_HOST: n8n-redis-1
+      REDIS_PORT: 6379
+      # Khuyến nghị tách DB index để không ảnh hưởng n8n
+      REDIS_DATABASE: 5
+      REDIS_PASSWORD: 30cc3bc72d20b76f8cda2c6c0f1beebb303ab96aab706c9f
+    restart: unless-stopped
+    networks:
+      - ai-content-net # network dùng chung với n8n-redis-1
+
+networks:
+  ai-content-net:
+    external: true # network đã/tạo bên ngoài compose
