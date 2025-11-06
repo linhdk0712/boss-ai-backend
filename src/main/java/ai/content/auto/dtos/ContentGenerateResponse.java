@@ -6,6 +6,7 @@ import java.util.Map;
 
 @Data
 public class ContentGenerateResponse {
+    private Long contentId; // ID of saved content in database
     private String generatedContent;
     private String title;
     private Integer wordCount;

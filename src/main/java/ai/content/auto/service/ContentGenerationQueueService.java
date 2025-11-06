@@ -16,7 +16,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -184,8 +183,9 @@ public class ContentGenerationQueueService {
                 // Convert job parameters to content generation request
                 ContentGenerateRequest request = convertToContentRequest(jobDto);
 
-                // Generate content using existing content service
-                ContentGenerateResponse response = contentService.generateContent(request);
+                // Generate content using async method with explicit user context
+                // This avoids security context issues in scheduled tasks
+                ContentGenerateResponse response = contentService.generateContentForUser(request, jobDto.getUserId());
 
                 // Calculate processing time
                 long processingTime = Instant.now().toEpochMilli() - startTime.toEpochMilli();
@@ -255,10 +255,10 @@ public class ContentGenerationQueueService {
         }
     }
 
-    @Transactional
     private boolean updateJobToProcessing(String jobId) {
         try {
             Instant now = Instant.now();
+            // Let Spring Data JPA handle the transaction for this simple update operation
             int updated = jobRepository.updateJobToProcessing(
                     jobId, JobStatus.PROCESSING, JobStatus.QUEUED, now);
             return updated > 0;
@@ -268,19 +268,19 @@ public class ContentGenerationQueueService {
         }
     }
 
-    @Transactional
     private void updateJobToQueued(String jobId) {
         try {
             Instant now = Instant.now();
+            // Let Spring Data JPA handle the transaction for this simple update operation
             jobRepository.updateJobStatus(jobId, JobStatus.QUEUED, now);
         } catch (Exception e) {
             log.error("Failed to update job {} to queued", jobId, e);
         }
     }
 
-    @Transactional
     private void updateJobToCompleted(String jobId, ContentGenerateResponse response, long processingTime) {
         try {
+            // Let Spring Data JPA handle the transaction for this simple update operation
             jobRepository.updateJobToCompleted(
                     jobId,
                     JobStatus.COMPLETED,
@@ -294,9 +294,9 @@ public class ContentGenerationQueueService {
         }
     }
 
-    @Transactional
     private void updateJobToFailed(String jobId, String errorMessage, Instant nextRetryAt) {
         try {
+            // Let Spring Data JPA handle the transaction for this simple update operation
             jobRepository.updateJobToFailed(
                     jobId,
                     JobStatus.FAILED,

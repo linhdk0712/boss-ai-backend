@@ -89,7 +89,7 @@ app:
 
   # CORS Configuration
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://bossai.com.vn}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:5175,https://bossai.com.vn}
     allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS,PATCH}
     allowed-headers: ${CORS_ALLOWED_HEADERS:*}
     allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
@@ -159,7 +159,7 @@ app:
       - org.springframework.ai.model.openai.autoconfigure.OpenAiEmbeddingAutoConfiguration
       - org.springframework.ai.model.openai.autoconfigure.OpenAiImageAutoConfiguration
 
-# Logging Configuration - No SQL Queries in Logs
+# Logging Configuration - Enhanced with Class Information
 logging:
   level:
     ai.content.auto: INFO
@@ -174,8 +174,10 @@ logging:
     org.springframework.orm.jpa: WARN
     org.springframework.transaction: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    # Enhanced console pattern with class name and method
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}.%M:%L - %msg%n"
+    # Enhanced file pattern with full class information
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50}.%M:%L - %msg%n"
   file:
     name: logs/boss-ai-backend.log
     max-size: 10MB

@@ -28,7 +28,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
         // Register WebSocket handler for job status updates
         registry.addHandler(jobStatusWebSocketHandler, "/ws/job-status")
                 .addInterceptors(webSocketAuthInterceptor)
-                .setAllowedOrigins("*") // Configure based on your CORS settings
+                .setAllowedOriginPatterns("*") // Configure based on your CORS settings
                 .withSockJS(); // Enable SockJS fallback for browsers that don't support WebSocket
 
         // Register WebSocket handler without SockJS for native WebSocket clients

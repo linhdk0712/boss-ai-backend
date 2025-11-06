@@ -1,0 +1,38 @@
+### Test Content Generation with Auto-Save
+POST http://localhost:8080/api/v1/content/generate
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "content": "Write a short blog post about the benefits of renewable energy",
+  "contentType": "blog",
+  "industry": "Environment",
+  "targetAudience": "General public",
+  "tone": "friendly",
+  "language": "vi",
+  "title": "Renewable Energy Benefits"
+}
+
+### Test Get User Contents (should include auto-saved content)
+GET http://localhost:8080/api/v1/content
+Authorization: Bearer {{accessToken}}
+
+### Test Get Specific Content by ID
+GET http://localhost:8080/api/v1/content/{{contentId}}
+Authorization: Bearer {{accessToken}}
+
+### Test Legacy Save Endpoint (should still work)
+POST http://localhost:8080/api/v1/content
+Content-Type: application/json
+Authorization: Bearer {{accessToken}}
+
+{
+  "generatedContent": "This is manually saved content about renewable energy...",
+  "title": "Manual Save Test",
+  "contentType": "blog",
+  "industry": "Environment",
+  "targetAudience": "General public",
+  "tone": "professional",
+  "language": "vi",
+  "prompt": "Write about renewable energy"
+}

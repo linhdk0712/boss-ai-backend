@@ -40,6 +40,7 @@ public final class ContentConstants {
     public static final String LANGUAGE_ENGLISH = "en";
 
     // ===== STATUS VALUES =====
+    public static final String STATUS_GENERATED = "GENERATED";
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
     public static final String STATUS_SAVED = "SAVED";
