@@ -97,23 +97,23 @@ public interface N8nNodeRunRepository extends JpaRepository<N8nNodeRun, Long> {
         Double getAverageDurationByUserId(@Param("userId") Long userId);
 
         /**
-         * Get statistics with date filtering
+         * Get statistics with date filtering - Fixed for PostgreSQL compatibility
          */
         @Query("SELECT COUNT(n) FROM N8nNodeRun n WHERE n.userId = :userId " +
-                        "AND (:dateFrom IS NULL OR n.createdAt >= :dateFrom) " +
-                        "AND (:dateTo IS NULL OR n.createdAt <= :dateTo)")
+                        "AND (CAST(:dateFrom AS timestamp) IS NULL OR n.createdAt >= :dateFrom) " +
+                        "AND (CAST(:dateTo AS timestamp) IS NULL OR n.createdAt <= :dateTo)")
         Long countByUserIdAndDateRange(@Param("userId") Long userId, @Param("dateFrom") Instant dateFrom,
                         @Param("dateTo") Instant dateTo);
 
         @Query("SELECT COUNT(n) FROM N8nNodeRun n WHERE n.userId = :userId AND n.status = 'SUCCESS' " +
-                        "AND (:dateFrom IS NULL OR n.createdAt >= :dateFrom) " +
-                        "AND (:dateTo IS NULL OR n.createdAt <= :dateTo)")
+                        "AND (CAST(:dateFrom AS timestamp) IS NULL OR n.createdAt >= :dateFrom) " +
+                        "AND (CAST(:dateTo AS timestamp) IS NULL OR n.createdAt <= :dateTo)")
         Long countSuccessfulByUserIdAndDateRange(@Param("userId") Long userId, @Param("dateFrom") Instant dateFrom,
                         @Param("dateTo") Instant dateTo);
 
         @Query("SELECT AVG(n.duration) FROM N8nNodeRun n WHERE n.userId = :userId AND n.duration IS NOT NULL " +
-                        "AND (:dateFrom IS NULL OR n.createdAt >= :dateFrom) " +
-                        "AND (:dateTo IS NULL OR n.createdAt <= :dateTo)")
+                        "AND (CAST(:dateFrom AS timestamp) IS NULL OR n.createdAt >= :dateFrom) " +
+                        "AND (CAST(:dateTo AS timestamp) IS NULL OR n.createdAt <= :dateTo)")
         Double getAverageDurationByUserIdAndDateRange(@Param("userId") Long userId, @Param("dateFrom") Instant dateFrom,
                         @Param("dateTo") Instant dateTo);
 }
