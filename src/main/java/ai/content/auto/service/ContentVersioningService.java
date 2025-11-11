@@ -111,31 +111,71 @@ public class ContentVersioningService {
 
             log.info("Creating version for content: {} by user: {} (background job)", contentId, userId);
 
-            // 2. Get user entity
-            User user = getUserById(userId);
+            // 2. Get user entity with detailed error logging
+            User user = null;
+            try {
+                user = getUserById(userId);
+                log.debug("User found: {} for content version creation", userId);
+            } catch (Exception e) {
+                log.error("Failed to get user: {} for content: {}. Error: {}", userId, contentId, e.getMessage(), e);
+                throw new BusinessException("User not found or inaccessible: " + userId);
+            }
 
-            // 3. Validate content ownership
-            validateContentOwnership(contentId, userId);
+            // 3. Validate content ownership with detailed error logging
+            try {
+                validateContentOwnership(contentId, userId);
+                log.debug("Content ownership validated for content: {} and user: {}", contentId, userId);
+            } catch (NotFoundException e) {
+                log.error("Content not found: {} for user: {}", contentId, userId, e);
+                throw e;
+            } catch (BusinessException e) {
+                log.error("Content ownership validation failed for content: {} and user: {}. Error: {}",
+                        contentId, userId, e.getMessage(), e);
+                throw e;
+            }
 
             // 4. Create version in transaction
-            ContentVersion version = createVersionInTransaction(contentId, response, user);
+            ContentVersion version = null;
+            try {
+                version = createVersionInTransaction(contentId, response, user);
+                log.debug("Version created in transaction: {} for content: {}", version.getVersionNumber(), contentId);
+            } catch (Exception e) {
+                log.error("Failed to create version in transaction for content: {} by user: {}. Error: {}",
+                        contentId, userId, e.getMessage(), e);
+                throw new InternalServerException("Failed to create version in database");
+            }
 
-            // 5. Update main content record
-            updateContentToLatestVersionInTransaction(contentId, version);
+            // 5. Update main content record (non-critical, don't fail if this fails)
+            try {
+                updateContentToLatestVersionInTransaction(contentId, version);
+                log.debug("Main content record updated for content: {}", contentId);
+            } catch (Exception e) {
+                log.warn("Failed to update main content record for content: {}. Version still created. Error: {}",
+                        contentId, e.getMessage());
+                // Don't throw - version is already created
+            }
 
-            // 6. Check and apply cleanup policies
-            applyCleanupPolicies(contentId);
+            // 6. Check and apply cleanup policies (non-critical, don't fail if this fails)
+            try {
+                applyCleanupPolicies(contentId);
+                log.debug("Cleanup policies applied for content: {}", contentId);
+            } catch (Exception e) {
+                log.warn("Failed to apply cleanup policies for content: {}. Error: {}", contentId, e.getMessage());
+                // Don't throw - this is a background operation
+            }
 
             log.info("Version {} created successfully for content: {} (background job)", version.getVersionNumber(),
                     contentId);
             return contentVersionMapper.toDto(version);
 
         } catch (BusinessException e) {
-            log.error("Business error creating version for content: {} by user: {}", contentId, userId, e);
+            log.error("Business error creating version for content: {} by user: {}. Message: {}",
+                    contentId, userId, e.getMessage(), e);
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error creating version for content: {} by user: {}", contentId, userId, e);
-            throw new InternalServerException("Failed to create content version");
+            log.error("Unexpected error creating version for content: {} by user: {}. Error type: {}, Message: {}",
+                    contentId, userId, e.getClass().getSimpleName(), e.getMessage(), e);
+            throw new InternalServerException("Failed to create content version: " + e.getMessage());
         }
     }
 
